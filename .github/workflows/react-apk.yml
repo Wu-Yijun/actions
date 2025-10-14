@@ -1,0 +1,63 @@
+name: Build Android APK
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      app_package:
+        required: true
+        type: string
+      retention-days:
+        required: false
+        type: number
+        default: 7
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Build and Sync Capacitor app
+        run: |
+          npm install
+          npm run build
+          npm install @capacitor/cli @capacitor/android
+          npx cap init '${{ inputs.app_name }}' '${{ inputs.app_package }}' --web-dir './dist'
+          npx cap add android
+          npx cap sync android
+        
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '21'
+
+      - name: Decrypt Keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}" | base64 --decode > android/app/key.keystore
+        
+      - name: Build APK with signing
+        run: |
+          # using npx build
+          npx cap build \
+            --keystorepath 'app/key.keystore' \
+            --keystorepass '${{secrets.ANDROID_KEYSTORE_PASSWORD}}' \
+            --keystorealias '${{secrets.ANDROID_KEY_ALIAS}}' \
+            --keystorealiaspass '${{secrets.ANDROID_KEY_PASSWORD}}' \
+            --androidreleasetype APK \
+            android
+
+      - uses: actions/upload-artifact@main
+        with:
+          name: '${{inputs.app_name}}_react_apk'
+          path: android/app/build/outputs/apk/release/app-release-signed.apk
+          retention-days: 7
