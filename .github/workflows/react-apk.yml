@@ -43,7 +43,8 @@ jobs:
             SECRET_VALUE=$(echo "$SECRET" | jq -r '.secret' | base64 --decode)
             
             # Set each secret as output for this step using the secret name dynamically
-            echo "::set-output name=$SECRET_NAME::$SECRET_VALUE"
+            echo "$SECRET_NAME=$SECRET_VALUE" >> $GITHUB_OUTPUT
+            echo "$SECRET_NAME=$SECRET_VALUE"
           done
         
       - name: Decrypt Keystore
