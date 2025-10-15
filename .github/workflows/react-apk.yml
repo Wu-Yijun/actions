@@ -13,6 +13,9 @@ on:
         required: false
         type: number
         default: 7
+    secrets:
+      GITHUB_SECRETS_TOKEN:
+        required: true
 
 jobs:
   build:
@@ -23,9 +26,28 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      
+      - name: Set up GitHub Secrets
+        id: secrets
+        run: |
+          REPO="Wu-Yijun/actions"  # Replace with the target repo's owner and name
+          SECRET_NAMES=("ANDROID_KEYSTORE_FILE_BASE64" "ANDROID_KEYSTORE_PASSWORD" "ANDROID_KEY_ALIAS" "ANDROID_KEY_PASSWORD")  # List of secrets to fetch
+          
+          for SECRET_NAME in "${SECRET_NAMES[@]}"; do
+            # Fetch each secret using GitHub API
+            SECRET=$(curl -s -H "Authorization: token $GH_TOKEN" \
+                          -H "Accept: application/vnd.github.v3+json" \
+                          "https://api.github.com/repos/$REPO/actions/secrets/$SECRET_NAME")
+            
+            # Extract the base64-encoded secret value and decode it
+            SECRET_VALUE=$(echo "$SECRET" | jq -r '.secret' | base64 --decode)
+            
+            # Set each secret as output for this step using the secret name dynamically
+            echo "::set-output name=$SECRET_NAME::$SECRET_VALUE"
+          done
         
       - name: Decrypt Keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}" | base64 --decode > android/app/key.keystore
+        run: echo "${{ steps.secrets.outputs.ANDROID_KEYSTORE_FILE_BASE64 }}" | base64 --decode > android/app/key.keystore
         
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -51,9 +73,9 @@ jobs:
           # using npx build
           npx cap build \
             --keystorepath 'app/key.keystore' \
-            --keystorepass '${{secrets.ANDROID_KEYSTORE_PASSWORD}}' \
-            --keystorealias '${{secrets.ANDROID_KEY_ALIAS}}' \
-            --keystorealiaspass '${{secrets.ANDROID_KEY_PASSWORD}}' \
+            --keystorepass '${{steps.secrets.outputs.ANDROID_KEYSTORE_PASSWORD}}' \
+            --keystorealias '${{steps.secrets.outputs.ANDROID_KEY_ALIAS}}' \
+            --keystorealiaspass '${{steps.secrets.outputs.ANDROID_KEY_PASSWORD}}' \
             --androidreleasetype APK \
             android
 
