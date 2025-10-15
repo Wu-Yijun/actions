@@ -18,6 +18,7 @@ jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
+    environment: production  # 指定环境，确保访问该环境的 secrets
 
     steps:
       - name: Checkout code
