@@ -23,7 +23,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+        
+      - name: Decrypt Keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}" | base64 --decode > android/app/key.keystore
+        
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
@@ -43,9 +46,6 @@ jobs:
           distribution: 'temurin' # See 'Supported distributions' for available options
           java-version: '21'
 
-      - name: Decrypt Keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}" | base64 --decode > android/app/key.keystore
-        
       - name: Build APK with signing
         run: |
           # using npx build
