@@ -5,29 +5,40 @@ inputs:
   SECRETS_ACCESS_PAT:
     description: 'GitHub token to access the Wu-Yijun/secrets repository'
     required: true
+    type: string
   AGE_PRIVATE_KEY:
     description: 'The age encryption key to decrypt the files'
     required: true
+    type: string
   app_name:
     description: 'The android app name used for build'
     required: true
+    type: string
   app_package:
     description: 'The android app package name used for build'
     required: true
+    type: string
   debug:
     description: 'Upload ./android folder before building'
     required: false
     default: false
+    type: boolean
 
 runs:
   using: 'composite'
   steps:
+    - name: Add mask to keys (In case)
+      shell: bash
+      run: |
+        echo '::add-mask::${{inputs.SECRETS_ACCESS_PAT}}'
+        echo '::add-mask::${{inputs.AGE_PRIVATE_KEY}}'
+      
     - uses: Wu-Yijun/actions/.github/actions/secrets@main
       id: get
       with: 
         SECRETS_ACCESS_PAT: ${{ inputs.SECRETS_ACCESS_PAT }}
         AGE_PRIVATE_KEY: ${{ inputs.AGE_PRIVATE_KEY }}
-        output-path: ./.secrets
+        output-path: ./.temp.secrets
         file-list: |
           ./Android/KEY_ALIAS.txt
           ./Android/KEYSTORE_PASSWORD.txt
@@ -55,10 +66,6 @@ runs:
         npx cap add android
         npx cap sync android
       
-    - name: Config Signature
-      shell: bash
-      run: mv ./.secrets/Android/Aluria.jks ./android/app/Aluria.jks
-
     - name: Upload Build Config
       if: ${{inputs.debug}} == true
       uses: actions/upload-artifact@main
@@ -67,17 +74,35 @@ runs:
         path: android
         retention-days: 1
       
-    - name: Build APK with signing
+    - name: Build APK without signing
       shell: bash
       run: |
         # using npx build
+        # npx cap build \
+        #   --keystorepath 'app/Aluria.jks' \
+        #   --keystorepass '${{fromJSON(steps.get.outputs.secrets).KEYSTORE_PASSWORD}}' \
+        #   --keystorealias '${{fromJSON(steps.get.outputs.secrets).KEY_ALIAS}}' \
+        #   --keystorealiaspass '${{fromJSON(steps.get.outputs.secrets).KEY_PASSWORD}}' \
+        #   --androidreleasetype APK \
+        #   android
+          
         npx cap build \
-          --keystorepath 'app/Aluria.jks' \
-          --keystorepass '${{fromJSON(steps.get.outputs.secrets).KEYSTORE_PASSWORD}}' \
-          --keystorealias '${{fromJSON(steps.get.outputs.secrets).KEY_ALIAS}}' \
-          --keystorealiaspass '${{fromJSON(steps.get.outputs.secrets).KEY_PASSWORD}}' \
           --androidreleasetype APK \
           android
+          
+    - name: Config Signature
+      shell: bash
+      run: mv ./.temp.secrets/Android/Aluria.jks ./android/app/Aluria.jks
+
+    - name: Sign Apk
+      uses: Wu-Yijun/actions/.github/actions/sign-apk@main
+      with:
+        SIGNING_STORE_PASSWORD: ${{fromJSON(steps.get.outputs.secrets).KEYSTORE_PASSWORD}}
+        SIGNING_KEY_ALIAS:      ${{fromJSON(steps.get.outputs.secrets).KEY_ALIAS}}
+        SIGNING_KEY_PASSWORD:   ${{fromJSON(steps.get.outputs.secrets).KEY_PASSWORD}}
+        keystore: ./android/app/Aluria.jks
+        input:    ./android/app/build/outputs/apk/release/app-release-unsigned.apk
+        output:   ./android/app/build/outputs/apk/release/app-release-signed.apk
 
     - name: Remove Secrets
       shell: bash
