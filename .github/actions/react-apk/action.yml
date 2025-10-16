@@ -1,0 +1,62 @@
+name: 'Build Android APK'
+description: 'Build Android APK from (Vite +) React project, using Capacitor.'
+
+inputs:
+  SECRETS_ACCESS_PAT:
+    description: 'GitHub token to access the Wu-Yijun/secrets repository'
+    required: true
+  AGE_PRIVATE_KEY:
+    description: 'The age encryption key to decrypt the files'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: Wu-Yijun/actions/.github/actions/secrets@main
+      id: get
+      with: 
+        SECRETS_ACCESS_PAT: ${{ inputs.SECRETS_ACCESS_PAT }}
+        AGE_PRIVATE_KEY: ${{ inputs.AGE_PRIVATE_KEY }}
+        output-path: ./.secrets
+        file-list: |
+          ./Android/KEY_ALIAS.txt
+          ./Android/KEYSTORE_PASSWORD.txt
+          ./Android/KEY_PASSWORD.txt
+          ./Android/Aluria.jks.bin
+          - name: Set up Node.js
+          
+    - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+    - uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin' # See 'Supported distributions' for available options
+        java-version: '21'
+
+    - name: Build and Sync Capacitor app
+      run: |
+        npm install
+        npm run build
+        npm install @capacitor/cli @capacitor/android
+        npx cap init '${{ inputs.app_name }}' '${{ inputs.app_package }}' --web-dir './dist'
+        npx cap add android
+        npx cap sync android
+      
+    - name: Config Signature
+      run: mv ./.secrets/Android/Aluria.jks ./android/app/Aluria.jks
+      
+    - name: Build APK with signing
+      run: |
+        # using npx build
+        npx cap build \
+          --keystorepath 'app/Aluria.jks' \
+          --keystorepass '${{fromJSON(steps.get.outputs.secrets).KEYSTORE_PASSWORD}}' \
+          --keystorealias '${{fromJSON(steps.get.outputs.secrets).KEY_ALIAS}}' \
+          --keystorealiaspass '${{fromJSON(steps.get.outputs.secrets).KEY_PASSWORD}}' \
+          --androidreleasetype APK \
+          android
+
+    - name: Remove Secrets
+      run: rm -r ./.secrets
+      
