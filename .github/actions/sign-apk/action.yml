@@ -1,92 +1,100 @@
 name: 'Sign Android APK'
 description: 'Sign Android APK using sign tool and keystore file.'
 
-on:
-  workflow_dispatch:
-    inputs:
-      SIGNING_STORE_PASSWORD:
-        description: 'Password to open keystore file.'
-        required: true
-        type: string
-      SIGNING_KEY_ALIAS:
-        description: 'A signature item name for signing.'
-        required: true
-        type: string
-      SIGNING_KEY_PASSWORD:
-        description: 'Keys to open the signature item. Sometimes may be the same to SIGNING_STORE_PASSWORD.'
-        required: true
-        type: string
+inputs:
+  SIGNING_STORE_PASSWORD:
+    description: 'Password to open keystore file.'
+    required: true
+    type: string
+  SIGNING_KEY_ALIAS:
+    description: 'A signature item name for signing.'
+    required: true
+    type: string
+  SIGNING_KEY_PASSWORD:
+    description: 'Keys to open the signature item. Sometimes may be the same to SIGNING_STORE_PASSWORD.'
+    required: true
+    type: string
 
-      build_tool_version:
-        description: 'A version to determine which to use among android sdk tools.'
-        required: false
-        type: string
-        
-      keystore:
-        description: 'A path where you can get a keystore file(.jks or .keystore). If not set, default to find it in `./android/app/keystore.jks`'
-        required: false
-        type: string
-        default: ./android/app/keystore.jks
-      input:
-        description: 'The path of your unsigned apk file. If not set, default to find it in `android/app/build/outputs/apk/release/app-release-unsigned.apk`'
-        required: false
-        type: string
-        default: ./android/app/build/outputs/apk/release/app-release-unsigned.apk
-      output:
-        description: 'A path where you can get a keystore file(.jks or .keystore). If unset, default to put it in `android/app/build/outputs/apk/release/app-release-signed.apk`'
-        required: false
-        type: string
-        default: ./android/app/build/outputs/apk/release/app-release-unsigned.apk
+  build_tool_version:
+    description: 'A version to determine which to use among android sdk tools.'
+    required: false
+    type: string
+    
+  keystore:
+    description: 'A path where you can get a keystore file(.jks or .keystore). If not set, default to find it in `./android/app/keystore.jks`'
+    required: false
+    type: string
+    default: ./android/app/keystore.jks
+  input:
+    description: 'The path of your unsigned apk file. If not set, default to find it in `android/app/build/outputs/apk/release/app-release-unsigned.apk`'
+    required: false
+    type: string
+    default: ./android/app/build/outputs/apk/release/app-release-unsigned.apk
+  output:
+    description: 'A path where you can get a keystore file(.jks or .keystore). If unset, default to put it in `android/app/build/outputs/apk/release/app-release-signed.apk`'
+    required: false
+    type: string
+    default: ./android/app/build/outputs/apk/release/app-release-unsigned.apk
 
 runs:
   using: 'composite'
   steps:
-      - name: Find latest build-tools version
-        id: get_build_tools
-        run: |
-          if [ -n "$var" ]; then
-            if [ -f '/usr/local/lib/android/sdk/build-tools/${{input.build_tool_version}}/apksigner' ]; then
-                echo "The Version ${{input.build_tool_version}} is not exist!"
-            else
-                echo "Use the Android SDK Version ${{input.build_tool_version}}!"
-                echo "build_tools_version=${{input.build_tool_version}}" >> $GITHUB_OUTPUT
-                exit 0
-            fi
-          fi
-          
-          BUILD_TOOLS_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | sort -rV | head -n 1)
-          echo "Use the latest Android SDK Version $BUILD_TOOLS_VERSION by default."
-          echo "build_tools_version=$BUILD_TOOLS_VERSION" >> $GITHUB_OUTPUT
+    - name: Add mask to keys (In case)
+      shell: bash
+      run: |
+        echo '::add-mask::${{inputs.SIGNING_STORE_PASSWORD}}'
+        echo '::add-mask::${{inputs.SIGNING_KEY_ALIAS}}'
+        echo '::add-mask::${{inputs.SIGNING_KEY_PASSWORD}}'
         
-      - name: Manual Zipalign and Sign APK
-        env:
-          BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
-          SIGNING_KEY_PASSWORD: ${{ inputs.SIGNING_KEY_PASSWORD }}
-          SIGNING_STORE_PASSWORD: ${{ inputs.SIGNING_STORE_PASSWORD }}
-        run: |
+    - name: Find latest build-tools version
+      id: get_build_tools
+      shell: bash
+      run: |
+        if [ -n "$var" ]; then
+          if [ -f '/usr/local/lib/android/sdk/build-tools/${{input.build_tool_version}}/apksigner' ]; then
+              echo "The Version ${{input.build_tool_version}} is not exist!"
+          else
+              echo "Use the Android SDK Version ${{input.build_tool_version}}!"
+              echo "build_tools_version=${{input.build_tool_version}}" >> $GITHUB_OUTPUT
+              exit 0
+          fi
+        fi
+        
+        BUILD_TOOLS_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | sort -rV | head -n 1)
+        echo "Use the latest Android SDK Version $BUILD_TOOLS_VERSION by default."
+        echo "build_tools_version=$BUILD_TOOLS_VERSION" >> $GITHUB_OUTPUT
+      
+    - name: Manual Zipalign and Sign APK
+      shell: bash
+      env:
+        BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
+        SIGNING_KEY_PASSWORD: ${{ inputs.SIGNING_KEY_PASSWORD }}
+        SIGNING_STORE_PASSWORD: ${{ inputs.SIGNING_STORE_PASSWORD }}
+      run: |
 
-          mkdir -p "$(basename '${{inputs.output}}')"
+        mkdir -p "$(basename '${{inputs.output}}')"
 
-          # Zipalign the unsigned APK
-          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/zipalign -v -p 4 '${{inputs.input}}' '${{inputs.output}}.temp'
+        # Zipalign the unsigned APK
+        /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/zipalign -v -p 4 '${{inputs.input}}' '${{inputs.output}}.temp'
 
-          # Sign the aligned APK with v1 and v2 schemes
-          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign \
-            --ks '${{inputs.keystore}}' \
-            --ks-key-alias '${{inputs.SIGNING_KEY_ALIAS}}' \
-            --ks-pass env:SIGNING_STORE_PASSWORD \
-            --key-pass env:SIGNING_KEY_PASSWORD \
-            --out '${{inputs.output}}' \
-            '${{inputs.output}}.temp'
+        # Sign the aligned APK with v1 and v2 schemes
+        /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign \
+          --ks '${{inputs.keystore}}' \
+          --ks-key-alias '${{inputs.SIGNING_KEY_ALIAS}}' \
+          --ks-pass env:SIGNING_STORE_PASSWORD \
+          --key-pass env:SIGNING_KEY_PASSWORD \
+          --out '${{inputs.output}}' \
+          '${{inputs.output}}.temp'
 
-          rm '${{inputs.output}}.temp'
+        rm '${{inputs.output}}.temp'
 
-      - name: Verify signed APK
-        env:
-          BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
-        run: |
-          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner verify \
-            --verbose '${{inputs.output}}'
+    - name: Verify signed APK
+      shell: bash
+      env:
+        BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
+      run: |
+        /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner verify \
+          --verbose '${{inputs.output}}'
 
       # - uses: actions/upload-artifact@main
       #   with:
