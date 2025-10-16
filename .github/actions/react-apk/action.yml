@@ -41,6 +41,7 @@ runs:
         java-version: '21'
 
     - name: Build and Sync Capacitor app
+      shell: bash
       run: |
         npm install
         npm run build
@@ -50,9 +51,11 @@ runs:
         npx cap sync android
       
     - name: Config Signature
+      shell: bash
       run: mv ./.secrets/Android/Aluria.jks ./android/app/Aluria.jks
       
     - name: Build APK with signing
+      shell: bash
       run: |
         # using npx build
         npx cap build \
@@ -64,5 +67,6 @@ runs:
           android
 
     - name: Remove Secrets
+      shell: bash
       run: rm -r ./.secrets
       
