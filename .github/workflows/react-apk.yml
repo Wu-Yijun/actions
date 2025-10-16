@@ -56,32 +56,37 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ inputs.SIGNING_KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ inputs.SIGNING_STORE_PASSWORD }}
         run: |
-          UNSIGNED_APK="${{inputs.input}}"
-          SIGNED_APK="${{inputs.output}}"
-          ALIGNED_APK="$SIGNED_APK.temp"
 
           mkdir -p "$(basename SIGNED_APK)"
 
           # Zipalign the unsigned APK
-          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/zipalign -v -p 4 ${UNSIGNED_APK} ${ALIGNED_APK}
+          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/zipalign -v -p 4 '${{inputs.input}}' '${{inputs.output}}.temp'
 
           # Sign the aligned APK with v1 and v2 schemes
-          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign --ks '${{inputs.keystore}}' --ks-key-alias ${SIGNING_KEY_ALIAS} --ks-pass env:SIGNING_STORE_PASSWORD --key-pass env:SIGNING_KEY_PASSWORD --out ${SIGNED_APK} ${ALIGNED_APK}
+          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign \
+            --ks '${{inputs.keystore}}' \
+            --ks-key-alias '${SIGNING_KEY_ALIAS}' \
+            --ks-pass env:SIGNING_STORE_PASSWORD \
+            --key-pass env:SIGNING_KEY_PASSWORD \
+            --out '${{inputs.output}}' \
+            '${{inputs.output}}.temp'
 
-          rm "$ALIGNED_APK"
+          rm '${{inputs.output}}.temp'
 
       - name: Verify signed APK
         env:
           BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
         run: |
-          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner verify --verbose android/app/build/outputs/apk/release/app-release.apk
+          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner verify \
+            --verbose '${{inputs.output}}'
 
 
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release-signed
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: ${{inputs.output}}
+          retention-days: 1
         
       # - uses: actions/upload-artifact@main
       #   with:
