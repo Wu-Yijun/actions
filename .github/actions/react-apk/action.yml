@@ -8,6 +8,12 @@ inputs:
   AGE_PRIVATE_KEY:
     description: 'The age encryption key to decrypt the files'
     required: true
+  app_name:
+    description: 'The android app name used for build'
+    required: true
+  app_package:
+    description: 'The android app package name used for build'
+    required: true
 
 runs:
   using: 'composite'
