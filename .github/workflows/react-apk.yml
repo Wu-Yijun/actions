@@ -3,14 +3,28 @@ name: Build Android APK
 on:
   workflow_dispatch:
     inputs:
+      SIGNING_KEY_ALIAS:
+        required: true
+        type: string
+      SIGNING_KEY_PASSWORD:
+        required: true
+        type: string
+      SIGNING_STORE_PASSWORD:
+        required: true
+        type: string
+      keystore_file:
+        required: false
+        type: string
+        default: ./android/app/keystore.jks
+      
       file_name:
         required: true
         type: string
         default: ./test/app-release-unsigned.apk
-      retention-days:
+      output:
         required: false
-        type: number
-        default: '7'
+        type: string
+        default: ./test/app-release.apk
 
 jobs:
   build:
@@ -27,11 +41,46 @@ jobs:
       #   with:
       #     distribution: 'temurin' # See 'Supported distributions' for available options
       #     java-version: '21'
-        
+      
+      - name: Find latest build-tools version
+        id: get_build_tools
+        run: |
+          BUILD_TOOLS_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | sort -rV | head -n 1)
+          echo "build_tools_version=$BUILD_TOOLS_VERSION" >> $GITHUB_OUTPUT
+          
       - name: Sign-apk
         run: |
           # Get 
           ls /usr/local/lib/android/sdk/build-tools/
+        
+      - name: Manual Zipalign and Sign APK
+        env:
+          BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+        run: |
+          UNSIGNED_APK=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          ALIGNED_APK=android/app/build/outputs/apk/release/app-release-aligned.apk
+          SIGNED_APK=android/app/build/outputs/apk/release/app-release.apk
+
+          # Zipalign the unsigned APK
+          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/zipalign -v -p 4 ${UNSIGNED_APK} ${ALIGNED_APK}
+
+          # Sign the aligned APK with v1 and v2 schemes
+          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign --ks android/app/keystore.jks --ks-key-alias ${SIGNING_KEY_ALIAS} --ks-pass env:SIGNING_STORE_PASSWORD --key-pass env:SIGNING_KEY_PASSWORD --out ${SIGNED_APK} ${ALIGNED_APK}
+
+      - name: Verify signed APK
+        env:
+          BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
+        run: |
+          /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner verify --verbose android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-signed
+          path: android/app/build/outputs/apk/release/app-release.apk
         
       # - uses: actions/upload-artifact@main
       #   with:
