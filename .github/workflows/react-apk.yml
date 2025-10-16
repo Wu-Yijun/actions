@@ -52,12 +52,11 @@ jobs:
       - name: Manual Zipalign and Sign APK
         env:
           BUILD_TOOLS_VERSION: ${{ steps.get_build_tools.outputs.build_tools_version }}
-          SIGNING_KEY_ALIAS: ${{ inputs.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ inputs.SIGNING_KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ inputs.SIGNING_STORE_PASSWORD }}
         run: |
 
-          mkdir -p "$(basename SIGNED_APK)"
+          mkdir -p "$(basename '${{inputs.output}}')"
 
           # Zipalign the unsigned APK
           /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/zipalign -v -p 4 '${{inputs.input}}' '${{inputs.output}}.temp'
@@ -65,7 +64,7 @@ jobs:
           # Sign the aligned APK with v1 and v2 schemes
           /usr/local/lib/android/sdk/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign \
             --ks '${{inputs.keystore}}' \
-            --ks-key-alias '${SIGNING_KEY_ALIAS}' \
+            --ks-key-alias '${{inputs.SIGNING_KEY_ALIAS}}' \
             --ks-pass env:SIGNING_STORE_PASSWORD \
             --key-pass env:SIGNING_KEY_PASSWORD \
             --out '${{inputs.output}}' \
