@@ -51,11 +51,11 @@ runs:
       shell: bash
       run: |
         if [ -n "$var" ]; then
-          if [ -f '/usr/local/lib/android/sdk/build-tools/${{input.build_tool_version}}/apksigner' ]; then
-              echo "The Version ${{input.build_tool_version}} is not exist!"
+          if [ -f '/usr/local/lib/android/sdk/build-tools/${{inputs.build_tool_version}}/apksigner' ]; then
+              echo "The Version ${{inputs.build_tool_version}} is not exist!"
           else
-              echo "Use the Android SDK Version ${{input.build_tool_version}}!"
-              echo "build_tools_version=${{input.build_tool_version}}" >> $GITHUB_OUTPUT
+              echo "Use the Android SDK Version ${{inputs.build_tool_version}}!"
+              echo "build_tools_version=${{inputs.build_tool_version}}" >> $GITHUB_OUTPUT
               exit 0
           fi
         fi
