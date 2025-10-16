@@ -14,6 +14,10 @@ inputs:
   app_package:
     description: 'The android app package name used for build'
     required: true
+  debug:
+    description: 'Upload ./android folder before building'
+    required: false
+    default: false
 
 runs:
   using: 'composite'
@@ -54,6 +58,14 @@ runs:
     - name: Config Signature
       shell: bash
       run: mv ./.secrets/Android/Aluria.jks ./android/app/Aluria.jks
+
+    - name: Upload Build Config
+      if: ${{inputs.debug}} == true
+      uses: actions/upload-artifact@main
+      with:
+        name: 'debug-android-build-config'
+        path: android
+        retention-days: 1
       
     - name: Build APK with signing
       shell: bash
