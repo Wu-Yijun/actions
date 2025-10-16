@@ -106,5 +106,5 @@ runs:
 
     - name: Remove Secrets
       shell: bash
-      run: rm -r ./.secrets
+      run: rm -r ./.temp.secrets
       
