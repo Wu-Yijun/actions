@@ -85,10 +85,10 @@ runs:
         #   --keystorealiaspass '${{fromJSON(steps.get.outputs.secrets).KEY_PASSWORD}}' \
         #   --androidreleasetype APK \
         #   android
-          
-        npx cap build \
-          --androidreleasetype APK \
-          android
+
+        cd android
+        chmod +x ./gradlew
+        ./gradlew assembleRelease
           
     - name: Config Signature
       shell: bash
