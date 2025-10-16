@@ -1,21 +1,16 @@
 name: Build Android APK
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      app_name:
+      file_name:
         required: true
         type: string
-      app_package:
-        required: true
-        type: string
+        default: ./test/app-release-unsigned.apk
       retention-days:
         required: false
         type: number
-        default: 7
-    secrets:
-      GITHUB_SECRETS_TOKEN:
-        required: true
+        default: '7'
 
 jobs:
   build:
@@ -25,66 +20,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Set up GitHub Secrets
-        id: secrets
-        run: |
-          REPO="Wu-Yijun/actions"  # Replace with the target repo's owner and name
-          SECRET_NAMES=("ANDROID_KEYSTORE_FILE_BASE64" "ANDROID_KEYSTORE_PASSWORD" "ANDROID_KEY_ALIAS" "ANDROID_KEY_PASSWORD")  # List of secrets to fetch
-          
-          for SECRET_NAME in "${SECRET_NAMES[@]}"; do
-            # Fetch each secret using GitHub API
-            SECRET=$(curl -s -H "Authorization: token $GH_TOKEN" \
-                          -H "Accept: application/vnd.github.v3+json" \
-                          "https://api.github.com/repos/$REPO/actions/secrets/$SECRET_NAME")
+        uses: actions/checkout@v4
 
-            echo "$SECRET"
-            echo "$SECRET" | jq -r '.secret'
-            
-            # Extract the base64-encoded secret value and decode it
-            SECRET_VALUE=$(echo "$SECRET" | jq -r '.secret' | base64 --decode)
-            
-            # Set each secret as output for this step using the secret name dynamically
-            echo "$SECRET_NAME=$SECRET_VALUE" >> $GITHUB_OUTPUT
-            echo "$SECRET_NAME=$SECRET_VALUE"
-          done
+      # - name: Set up Java 21
+      #   uses: actions/setup-java@v3
+      #   with:
+      #     distribution: 'temurin' # See 'Supported distributions' for available options
+      #     java-version: '21'
         
-      - name: Decrypt Keystore
-        run: echo "${{ steps.secrets.outputs.ANDROID_KEYSTORE_FILE_BASE64 }}" | base64 --decode > android/app/key.keystore
-        
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - name: Build and Sync Capacitor app
+      - name: Sign-apk
         run: |
-          npm install
-          npm run build
-          npm install @capacitor/cli @capacitor/android
-          npx cap init '${{ inputs.app_name }}' '${{ inputs.app_package }}' --web-dir './dist'
-          npx cap add android
-          npx cap sync android
+          # Get 
+          ls /usr/local/lib/android/sdk/build-tools/
         
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin' # See 'Supported distributions' for available options
-          java-version: '21'
-
-      - name: Build APK with signing
-        run: |
-          # using npx build
-          npx cap build \
-            --keystorepath 'app/key.keystore' \
-            --keystorepass '${{steps.secrets.outputs.ANDROID_KEYSTORE_PASSWORD}}' \
-            --keystorealias '${{steps.secrets.outputs.ANDROID_KEY_ALIAS}}' \
-            --keystorealiaspass '${{steps.secrets.outputs.ANDROID_KEY_PASSWORD}}' \
-            --androidreleasetype APK \
-            android
-
-      - uses: actions/upload-artifact@main
-        with:
-          name: '${{inputs.app_name}}_react_apk'
-          path: android/app/build/outputs/apk/release/app-release-signed.apk
-          retention-days: 7
+      # - uses: actions/upload-artifact@main
+      #   with:
+      #     name: '${{inputs.app_name}}_react_apk'
+      #     path: android/app/build/outputs/apk/release/app-release-signed.apk
+      #     retention-days: 7
