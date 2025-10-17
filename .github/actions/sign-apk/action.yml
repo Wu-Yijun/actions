@@ -50,7 +50,7 @@ runs:
       id: get_build_tools
       shell: bash
       run: |
-        if [ -n "$var" ]; then
+        if [ -n "${{inputs.build_tool_version}}" ]; then
           if [ -f '/usr/local/lib/android/sdk/build-tools/${{inputs.build_tool_version}}/apksigner' ]; then
               echo "The Version ${{inputs.build_tool_version}} is not exist!"
           else
