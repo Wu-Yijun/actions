@@ -73,7 +73,7 @@ runs:
       shell: bash
       run: |
         echo 'build apk with version number "${{ inputs.app_version }}" and build number "${{ github.run_number }}"'
-        capacitor-set-version set:android -v '${{ inputs.app_version }}' -b '${{ github.run_number }}'
+        npx capacitor-set-version set:android -v '${{ inputs.app_version }}' -b '${{ github.run_number }}'
         if [ -f "./assets/logo.png" ]; then
           echo "Icon file exist. Generating icon....."
           npx @capacitor/assets generate \
