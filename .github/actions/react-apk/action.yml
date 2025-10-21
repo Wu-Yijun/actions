@@ -18,6 +18,11 @@ inputs:
     description: 'The android app package name used for build'
     required: true
     type: string
+  app_version:
+    description: 'The android app version used for build'
+    required: false
+    default: 0.0.1
+    type: string
 
 runs:
   using: 'composite'
@@ -57,8 +62,27 @@ runs:
         npm install
         npm run build
         npm install @capacitor/cli @capacitor/android
+        npm i -D capacitor-set-version
+        npm install --save-dev @capacitor/assets
+        
         npx cap init '${{ inputs.app_name }}' '${{ inputs.app_package }}' --web-dir './dist'
         npx cap add android
+        npx cap sync android
+
+    - name: Set App Version and Icons
+      shell: bash
+      run: |
+        capacitor-set-version set:android -v '${{ inputs.app_version }}' -b ${{ github.run_number }}
+        if [ -f "./assets/logo.png" ]; then
+          echo "Icon file exist!"
+          # 在此处添加你希望执行的操作
+          npx @capacitor/assets generate \
+            --android \
+            --iconBackgroundColor '#eeeeee' \
+            --iconBackgroundColorDark '#222222' \
+            --splashBackgroundColor '#eeeeee' \
+            --splashBackgroundColorDark '#111111'
+        fi
         npx cap sync android
       
     - name: Build APK without signing
