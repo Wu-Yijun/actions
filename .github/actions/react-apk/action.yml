@@ -83,7 +83,7 @@ runs:
             --splashBackgroundColor '#eeeeee' \
             --splashBackgroundColorDark '#111111'
         else
-          echo 'Icon file "logo.png" is not found under "./src/assets". Use default icon instead.'
+          echo 'Icon file "logo.png" is not found under "./assets". Use default icon instead.'
         fi
         # Sync app
         npx cap sync android
