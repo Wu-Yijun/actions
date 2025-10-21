@@ -60,10 +60,9 @@ runs:
       shell: bash
       run: |
         npm install
-        npm run build
         npm install @capacitor/cli @capacitor/android
-        npm i -D capacitor-set-version
-        npm install --save-dev @capacitor/assets
+        npm i -D capacitor-set-version @capacitor/assets
+        npm run build
         
         npx cap init '${{ inputs.app_name }}' '${{ inputs.app_package }}' --web-dir './dist'
         npx cap add android
