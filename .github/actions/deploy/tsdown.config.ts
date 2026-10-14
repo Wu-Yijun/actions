@@ -5,7 +5,7 @@ export default defineConfig({
   format: ['esm'],
   platform: 'node',
   target: 'node24',
-  outDir: '.github/actions/deploy/dist',
+  outDir: 'dist',
   minify: true,
   clean: true,
   dts: false,
