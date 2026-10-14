@@ -31,7 +31,7 @@ jobs:
         with:
           token: ${{ github.token }}  # 密钥, 默认使用 actions 自带的权限
           path: "dist/"               # 静态页面路径, 默认使用 dist 文件夹
-          expire: 0.5                 # 文件暴露时间, 默认 0.5 秒(越长越稳定, 越短越安全)
+          expire: 30                  # 文件暴露超时, 超过超时仍未轮询到构建结束, 会强制退出(可能导致文件上传失败)
 ```
 
 > [!IMPORTANT]
