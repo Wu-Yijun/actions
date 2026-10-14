@@ -78,7 +78,8 @@ async function main(): Promise<void> {
 
   let file_deleted = false;
   let failed = false;
-  let sleep_time = 100;
+  let sleep_time = 20;
+  let last_status = undefined;
   try {
     while (performance.now() - startTime < expireTime * 1000) {
       await new Promise((a) => setTimeout(a, sleep_time));
@@ -89,18 +90,22 @@ async function main(): Promise<void> {
         pages_deployment_id: response.data?.id,
       });
       let can_exit = false;
+      if (status.data.status !== last_status) {
+        last_status = status.data.status;
+        console.debug("Deploy Status:", status.data.status);
+      }
       switch (status.data.status) {
         case "deployment_in_progress":
         case "syncing_files":
-        case "finished_file_sync":
-          console.debug("Deploy Status:", status.data.status);
+          // CANNOT delete the artifact yet, because the deployment is still in progress. Wait for the next status update.
           break;
         case "succeed":
           can_exit = true;
-        // fall through
+          // fall through
+        case "finished_file_sync":
         case "updating_pages":
         case "purging_cdn":
-          console.debug("Deploy Status:", status.data.status);
+          // CAN delete the artifact now, because the artifact is no longer needed for the deployment.
           if (!file_deleted) {
             const { id } = await artifact.deleteArtifact(artifactName);
             const finishTime = performance.now();
