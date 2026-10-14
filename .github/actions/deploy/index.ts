@@ -74,7 +74,7 @@ async function main(): Promise<void> {
     pages_build_version: buildVersion,
     oidc_token: idToken,
   });
-  console.log("Page deployed to:", response.data?.page_url ?? response);
+  console.log("Deploying Pages to:", response.data?.page_url ?? response);
 
   let file_deleted = false;
   let failed = false;
@@ -93,12 +93,14 @@ async function main(): Promise<void> {
         case "deployment_in_progress":
         case "syncing_files":
         case "finished_file_sync":
+          console.debug("Deploy Status:", status.data.status);
           break;
         case "succeed":
           can_exit = true;
         // fall through
         case "updating_pages":
         case "purging_cdn":
+          console.debug("Deploy Status:", status.data.status);
           if (!file_deleted) {
             const { id } = await artifact.deleteArtifact(artifactName);
             const finishTime = performance.now();
@@ -108,7 +110,7 @@ async function main(): Promise<void> {
           }
           break;
         case "deployment_attempt_error":
-        case undefined:
+          console.warn("Deploy attemp error, retrying");
           break;
         case "deployment_cancelled":
         case "deployment_failed":
