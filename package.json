@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:deploy": "tsdown ./.github/actions/deploy/index.ts --format=esm --platform=node --target=node24 --out-dir=.github/actions/deploy/dist --minify --clean --no-dts --treeshake --shims --deps.always-bundle=\"@actions/*\""
+    "build:deploy": "tsdown --config .github/actions/deploy/tsdown.config.ts"
   },
   "keywords": [],
   "author": "",
