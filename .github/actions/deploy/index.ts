@@ -75,17 +75,61 @@ const response = await octokit.request('POST /repos/{owner}/{repo}/pages/deploym
 });
 console.log("Page deployed to:", response.data?.page_url ?? response);
 
-  // sleep 100 ms
-await new Promise((resolve) => setTimeout(() => resolve(0), expireTime * 1000));
-const { id } = await artifact.deleteArtifact(artifactName);
-const finishTime = performance.now();
-console.log("Deleted Artifact ID:", id);
-console.log("Artifact Existing Time:", finishTime - startTime, "ms");
+let file_deleted = false;
+let sleep_time = 100;
+while (performance.now() - startTime < expireTime * 1000) {
+  await new Promise((a) => setTimeout(a, sleep_time)); // sleep 100 ms
+  sleep_time *= Math.min(Math.round(sleep_time * 1.5), 5000); // increase sleep time by 1.5x, but not more than 5 seconds
+  const status = await octokit.request('GET /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}', {
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pages_deployment_id: response.data?.id,
+  });
+  let can_exit = false;
+  switch (status.data.status) {
+    case "deployment_in_progress":
+    case "syncing_files":
+    case "finished_file_sync":
+      // should wait for the deployment to finish
+      break;
+    case "succeed":
+      can_exit = true;
+    case "updating_pages":
+    case "purging_cdn":
+      // we can delete the files
+      if (!file_deleted) {
+        const { id } = await artifact.deleteArtifact(artifactName);
+        const finishTime = performance.now();
+        console.log("Deleted Artifact ID:", id);
+        console.log("Artifact Existing Time:", finishTime - startTime, "ms");
+        file_deleted = true;
+      }
+      break;
+    case "deployment_attempt_error":
+    case undefined:
+      // may retry?
+      break;
+    case "deployment_cancelled":
+    case "deployment_failed":
+    case "deployment_content_failed":
+    case "deployment_lost":
+      // deploy failed
+      console.error("Deployment Failed. Reason:", status.data.status)
+      can_exit = true;
+      break;
+    default:
+      // unknown state
+      console.error("Unknown Status:", status.data.status)
+      break;
+
+  }
+  if (can_exit) {
+    break;
+  }
+}
+
+if (!file_deleted) {
+  // 报错, 中断执行
+}
 
 setOutput('page_url', response.data?.page_url)
-
-/* build command: 
-
-npx esbuild .\.github\actions\deploy\index.ts --bundle --format=esm --platform=node --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);" --outfile=.\.github\actions\deploy\dist\index.js --minify --tree-shaking=true
-
-*/

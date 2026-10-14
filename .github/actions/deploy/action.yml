@@ -16,7 +16,7 @@ inputs:
   expire:
     description: 'Duration after which artifact will be deleted in seconds.'
     required: true
-    default: 0.5
+    default: 30
 
 outputs:
   page_url:

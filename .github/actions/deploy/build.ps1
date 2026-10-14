@@ -1,6 +1,6 @@
 cd .\.github\actions\deploy
 
-npx esbuild index.ts `
+pnpm dlx esbuild index.ts `
   --bundle `
   --format=esm `
   --platform=node `
