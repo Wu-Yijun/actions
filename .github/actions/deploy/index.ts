@@ -91,17 +91,18 @@ async function main(): Promise<void> {
       });
       let can_exit = false;
       if (status.data.status !== last_status) {
+        console.debug("Deploy Status:", last_status, "->", status.data.status);
         last_status = status.data.status;
-        console.debug("Deploy Status:", status.data.status);
       }
       switch (status.data.status) {
+        case "deployment_queued":
         case "deployment_in_progress":
         case "syncing_files":
           // CANNOT delete the artifact yet, because the deployment is still in progress. Wait for the next status update.
           break;
         case "succeed":
           can_exit = true;
-          // fall through
+        // fall through
         case "finished_file_sync":
         case "updating_pages":
         case "purging_cdn":
